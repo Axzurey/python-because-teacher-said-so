@@ -33,8 +33,13 @@ class HeadedNotepad:
     def getNoteCount(self) -> int:
         return len(self.notes);
     
-    def getPrettyNote(self, index: int) -> Union[bool, str]:
-        if index < 0 or index >= self.getNoteCount(): return False;
+    def getPrettyNote(self, index: int) -> tuple[Literal[-1] | Literal[0], Union[bool, str] | str]:
+        try:
+            index = int(index);
+        except Exception as e:
+            return (-1, f'{index} is not a valid number');
+            
+        if index < 0 or index >= self.getNoteCount(): return (-1, 'Note index is invalid');
 
         note = self.notes[index];
 
@@ -42,7 +47,7 @@ class HeadedNotepad:
 -------------------------------------------------------
 {note.body}
 """
-        return text;
+        return (0, text);
 
     def modifyNote(self, index: int, newHeader: Union[str, None], newBody: Union[str, None] = None) -> Union[bool, Note]:
         if index < 0 or index >= self.getNoteCount(): return False;
@@ -72,6 +77,10 @@ class HeadedNotepad:
         return (0, notes);
 
     def getNoteHeaders(self, n: int = -1) -> tuple[Literal[0] | Literal[-1], list[tuple[str, int]] | str]:
+        try:
+            n = int(n);
+        except Exception as e:
+            return (-1, f'{n} is not a valid number!');
         """
         Gets the first n note headers (defaults to -1, which is all the notes) in the format: (Header, Index)
         """

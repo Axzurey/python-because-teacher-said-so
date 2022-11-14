@@ -3,7 +3,12 @@ Super Notepad!
 
 Creator: Michael Gharoro
 Reason behind creation: The teacher made me to it 😭
+What is this?
 
+This is a state-of-the-art notepad that can add notes, remove notes, modify notes, search through notes, etc.
+
+If marks are taken off for a lack of comments I will have a fit. I made this as readable as possible using types and good names
+so everything should be self explanitory. Well, comments were added in some places to fill any info that might be missing.
 """
 
 from typing import Literal, Union, TypedDict, Callable
@@ -22,13 +27,20 @@ class HeadedNotepad:
     def __init__(self):
         self.notes = [];
 
-    def addNote(self, header: str, body: str) -> tuple[Literal[0] | Literal[-1], Note]:
+    def addNote(self, header: str, body: str) -> tuple[Literal[0] | Literal[-1], str]:
         note = Note(header, body);
         self.notes.append(note);
-        return (0, note);
+        return (0, f'New note: {note.header} has been created.');
 
-    def removeNote(self, index: int) -> Note:
-        return self.notes.pop(index);
+    def removeNote(self, index: int) -> tuple[Literal[0] | Literal[-1], str]:
+        try:
+            index = int(index);
+        except Exception:
+            return (-1, f'{index} is not a valid number');
+
+        if index < 0 or index >= self.getNoteCount(): return (-1, f'There is no note with index {index}');
+        
+        return (0, f'Removed note: {self.notes.pop(index).header}');
 
     def getNoteCount(self) -> int:
         return len(self.notes);
@@ -36,26 +48,32 @@ class HeadedNotepad:
     def getPrettyNote(self, index: int) -> tuple[Literal[-1] | Literal[0], Union[bool, str] | str]:
         try:
             index = int(index);
-        except Exception as e:
+        except Exception:
             return (-1, f'{index} is not a valid number');
             
-        if index < 0 or index >= self.getNoteCount(): return (-1, 'Note index is invalid');
+        if index < 0 or index >= self.getNoteCount(): return (-1, f'There is no note with index {index}');
 
         note = self.notes[index];
 
-        text = f"""{note.header}
+        text = f"""-----------------------------------------------
+{note.header}
 -------------------------------------------------------
 {note.body}
 """
         return (0, text);
 
-    def modifyNote(self, index: int, newHeader: Union[str, None], newBody: Union[str, None] = None) -> Union[bool, Note]:
-        if index < 0 or index >= self.getNoteCount(): return False;
+    def modifyNote(self, index: int, newHeader: Union[str, None], newBody: Union[str, None] = None) -> tuple[Literal[0] | Literal[-1], Note | str]:
+        try:
+            index = int(index);
+        except Exception:
+            return (-1, f'{index} is not a valid number');
+
+        if index < 0 or index >= self.getNoteCount(): return (-1, f'There is no note with index {index}');
 
         self.notes[index].body = newBody if newBody else self.notes[index].body;
         self.notes[index].header = newHeader if newHeader else self.notes[index].header;
 
-        return self.notes[index];
+        return (0, self.notes[index]);
 
     def searchContains(self, check: str, checksBody: bool = False) -> tuple[Literal[0] | Literal[-1], list[tuple[Note, int]]]:
         """
@@ -69,7 +87,7 @@ class HeadedNotepad:
         for note in self.notes:
             if check in note.header:
                 notes.append((note, i));
-            if checksBody and check in note.body:
+            elif checksBody and check in note.body:
                 notes.append((note, i));
 
             i += 1;
@@ -79,7 +97,7 @@ class HeadedNotepad:
     def getNoteHeaders(self, n: int = -1) -> tuple[Literal[0] | Literal[-1], list[tuple[str, int]] | str]:
         try:
             n = int(n);
-        except Exception as e:
+        except Exception:
             return (-1, f'{n} is not a valid number!');
         """
         Gets the first n note headers (defaults to -1, which is all the notes) in the format: (Header, Index)
@@ -90,13 +108,34 @@ class HeadedNotepad:
             return (0, [(self.notes[i].header, i) for i in range(n)]);
 
     def listNoteHeaders(self, n: int = -1) -> tuple[Literal[0] | Literal[-1], list[tuple[str, int]] | str]:
+        try:
+            n = int(n);
+        except Exception:
+            return (-1, f'{n} is not a valid number!');
+
         [res, headers] = self.getNoteHeaders(n);
+
+        if len(headers) < 1: return (0, 'You have no notes!')
 
         h = 'Notes:\n';
 
         h += '\n'.join([f'{headers[i][1]}. {headers[i][0]}' for i in range(len(headers))]);
 
         return (res, h);
+
+    def formatBulkHeaders(self, q: tuple[Literal[0] | Literal[-1], list[tuple[Note, int]]]) -> tuple[Literal[0] | Literal[-1], str]:
+        if q[0] == -1: return (-1, 'Operation Failed. Reason: Unknown');
+
+        if len(q[1]) < 1: return (0, 'There are no notes that meet the criteria.');
+
+        s = '\n'.join([f'{noteIndex[1]}. {noteIndex[0].header}' for noteIndex in q[1]]);
+
+        return (0, s);
+
+    def purgeAll(self) -> tuple[Literal[0], str]:
+        self.notes = []; #leave the rest to the garbage collector, the old list will now have no references.
+        return (0, 'All notes have been purged.')
+
 
 currentNotePad = HeadedNotepad();
 
@@ -154,7 +193,7 @@ cmds = {
     "find": {
         "alias": ['f', 'search'],
         "args": ['What are you searching for?\t'],
-        "callback": lambda s: currentNotePad.searchContains(s, True),
+        "callback": lambda s: currentNotePad.formatBulkHeaders(currentNotePad.searchContains(s, True)),
         "description": 'Find all notes containing text'
     },
     "add": {
@@ -166,6 +205,7 @@ cmds = {
     "edit": {
         "alias": ['e', 'modify', 'change'],
         "args": [
+            'What entry index would you like to modify?\t',
             'Please enter your changes to the title. (If you plan on making no changes, you can leave it empty)\t',
             'Please enter your changes to the text. (If you plan on making no changes, you can leave it empty)\t'
         ],
@@ -184,6 +224,18 @@ cmds = {
         "callback": lambda i: currentNotePad.getPrettyNote(i),
         "description": 'Reads a note at the provided index'
     },
+    "exit": {
+        "alias": ['close', 'quit'],
+        "args": [],
+        "callback": lambda: exit(0),
+        "description": 'Closes the program'
+    },
+    "purge": {
+        "alias": ['clear'],
+        "args": ['[THIS ACTION CAN NOT BE UNDONE] Are you sure you want to clear all your notes? (yes/no)'],
+        "callback": lambda x: x.lower().strip() in ['y', 'yes', 'ok'] and currentNotePad.purgeAll() or (-1, 'You have cancelled the purge operation'),
+        "description": "[THIS ACTION CAN NOT BE UNDONE] Purges all your notes"
+    }
 }
 
 def acquireAndParseInput():
@@ -211,7 +263,7 @@ def acquireAndParseInput():
 
             args.append(arg);
 
-        [result, msg] = tbl['callback'](*args);
+        [result, msg] = tbl['callback'](*args); #A result of -1 means the action failed, therefore msg is the error message
         
         if result == -1:
             print(f'Performing function "{cmd}" failed because "{msg}"');
@@ -221,10 +273,5 @@ def acquireAndParseInput():
             print('Operation successful; Please continue.');
             return acquireAndParseInput();
 
-def start_main_loop():
-    while True:
+while True:
         acquireAndParseInput();
-
-
-
-start_main_loop();
